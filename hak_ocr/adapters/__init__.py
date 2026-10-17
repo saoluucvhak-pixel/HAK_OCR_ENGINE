@@ -1,3 +1,4 @@
 from .paddle import PaddleAdapter
 from .unlimited import UnlimitedAdapter
-__all__ = ["PaddleAdapter", "UnlimitedAdapter"]
+from .smart import SmartOCRAdapter
+__all__ = ["PaddleAdapter", "UnlimitedAdapter", "SmartOCRAdapter"]
