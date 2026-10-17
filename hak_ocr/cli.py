@@ -10,11 +10,12 @@ def main(argv=None):
     p.add_argument("file", type=Path)
     p.add_argument("--engine", choices=("paddle", "unlimited", "hak-smart"), required=True)
     p.add_argument("--out", type=Path)
+    p.add_argument("--paddle-mode", choices=("text", "structure"), default="text")
     p.add_argument("--endpoint", default="http://127.0.0.1:10000")
     p.add_argument("--smart-app-dir", type=Path, help="Path to existing HAK Smart OCR AI app")
     p.add_argument("--smart-engine", choices=("tesseract", "paddle", "hybrid"), default="tesseract")
     args = p.parse_args(argv)
-    engines = {"paddle": PaddleAdapter(), "unlimited": UnlimitedAdapter(endpoint=args.endpoint)}
+    engines = {"paddle": PaddleAdapter(mode=args.paddle_mode), "unlimited": UnlimitedAdapter(endpoint=args.endpoint)}
     if args.engine == "hak-smart":
         if args.smart_app_dir is None:
             p.error("--smart-app-dir is required for --engine hak-smart")
