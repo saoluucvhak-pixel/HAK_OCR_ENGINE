@@ -4,7 +4,7 @@ Triển khai thử nghiệm không đưa ảnh nhân sự lên repo công khai.
 
 ## Quy trình
 1. Xoay, hiệu chỉnh góc chụp và phối cảnh **ngoại tuyến**; lưu bản gốc bất biến.
-2. Phát hiện đường kẻ và tọa độ lưới, xác nhận số cột/ngày trên giao diện.
+2. Thử phát hiện đường kẻ qua `hak_ocr.grid_detection.detect_grid` (OpenCV tùy chọn), sau đó người vận hành xác nhận tọa độ, số cột/ngày trên giao diện.
 3. `extract_cells(image, xs, ys)` tách từng ô với tọa độ ảnh gốc; `save_crops(...)` hỗ trợ xử lý theo lô.
 4. OCR riêng từng ô bằng PaddleOCR hoặc HAK Smart OCR AI, có thể so sánh kết quả Unlimited-OCR.
 5. Ánh xạ từng ngày thành `{raw,bbox,confidence}`. Dùng `audit_attendance` để kiểm tra ô trống, ký tự bất thường, mức tin cậy, số ngày, sai lệch tổng.
@@ -21,8 +21,12 @@ report = audit_attendance([{"employee_id":"test","days":[{"raw":"1","confidence"
 assert report["payroll_ready"] is False
 ```
 
+## Pipeline thử nghiệm
+
+`run_attendance_pilot(image, engine, xs, ys, first_data_row=..., first_day_col=..., days=30, total_col=...)` gọi OCR cho từng ô sau khi xác nhận lưới và tạo báo cáo `NEEDS_REVIEW`. Không tự duyệt kết quả hoặc xuất lương.
+
 ## Giới hạn hiện tại
-- Tọa độ đường kẻ `xs, ys` hiện cần được cung cấp từ người vận hành hoặc detector bên ngoài; **chưa tự phát hiện lưới**.
+- Có detector OpenCV tùy chọn để **đề xuất** tọa độ đường kẻ; kết quả có thể không chính xác trên ảnh cong, nhiễu, bàn lệch và vẫn cần kiểm tra thủ công.
 - Chưa thực hiện OCR nhận dạng từng ô end-to-end với ảnh thật của người dùng.
 - Bảng có ô gộp/không kẻ, mờ, nghiêng nhiều cần thuật toán nhận dạng cấu trúc riêng.
 - `read_sum` chỉ tổng ô số đọc được; ô trống không phải 0. Tổng khớp không đồng nghĩa đã duyệt.
