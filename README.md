@@ -33,3 +33,9 @@ Mô-đun PaddleOCR đọc văn bản cơ bản; các tính năng bảng biểu, 
 Nguồn tham khảo: https://github.com/baidu/Unlimited-OCR
 
 Xem [Roadmap](docs/ROADMAP.md).
+
+## API dùng chung cho ứng dụng HAK (chưa bật tự động)
+
+Module `hak_ocr.platform.HAKOCRPlatform` cung cấp một API ổn định cho mọi ứng dụng HAK, có đăng ký engine và kết quả mặc định `NEEDS_REVIEW`. Cú pháp request/response và danh sách ứng dụng dự kiến tích hợp được mô tả tại [HAK Shared OCR API v1](docs/HAK_SHARED_OCR_API_V1.md). Không cần nâng cấp đồng loạt các ứng dụng; thư viện sẵn sàng để từng hệ thống kết nối khi cần.
+
+Các kiểm thử CI chạy với engine giả lập và không chứng minh độ chính xác mô hình thật trên chứng từ. Dữ liệu tài chính, CCCD và bảng lương không được đẩy vào repository công khai.
