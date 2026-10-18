@@ -13,4 +13,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test js/tests/unit/attendance-validation.test.js js/tests/unit/handwritten-digits.test.js js/tests/unit/ocr-acceptance.test.js
+      - run: node --test js/tests/unit/attendance-validation.test.js js/tests/unit/handwritten-digits.test.js js/tests/unit/ocr-acceptance.test.js js/tests/unit/attendance-layout.test.js
