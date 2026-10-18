@@ -19,3 +19,16 @@ test('invalid dates/times rejected; missing year is not invented; repeated token
  assert.deepEqual(r.candidates.filter(c=>c.field==='date').map(c=>c.value),['28/7']);
  assert.deepEqual(r.candidates.filter(c=>c.field==='time').map(c=>c.value),['23:10','01:20']);
 });
+
+test('short handwritten hour notation and single-digit minutes normalize with evidence',()=>{
+ const r=P.documentReview('7h; 15 giờ 5 phút; 8gio; 09:3; 24h; 12h99');
+ assert.deepEqual(r.candidates.filter(c=>c.field==='time').map(c=>c.value),['07:00','15:05','08:00','09:03']);
+ assert.equal(r.candidates[0].minutesExplicit,false);assert.equal(r.candidates[1].minutesExplicit,true);
+});
+test('same hour on separate lines stays separate; repeats on same line deduplicate',()=>{
+ const c=P.documentReview('7h00 7h00\n7h00').candidates;assert.equal(c.length,2);assert.deepEqual(c.map(x=>x.sourceLine),[1,2]);
+});
+test('dates keep missing year explicit and provide ISO only for complete valid dates',()=>{
+ const c=P.documentReview('29/2\n29/2/2024\n31/2/2024\n6/7/1999').candidates.filter(x=>x.field==='date');
+ assert.equal(c.length,3);assert.equal(c[0].needsYear,true);assert.equal(c[0].normalized,null);assert.equal(c[1].normalized,'2024-02-29');assert.equal(c[2].normalized,'1999-07-06');
+});
