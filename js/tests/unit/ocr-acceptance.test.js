@@ -15,6 +15,8 @@ test('acceptance: misplaced correct values are alignment failures and names neve
 test('acceptance: rejects duplicate cells, missing review status and document/writer leakage', () => {
   assert.throws(() => evaluate(fixture([cell(), cell()])));
   assert.throws(() => evaluate(fixture([cell({ needsReview: undefined })])));
+  const placeholder = fixture([cell()]); placeholder.pages[0].group = 'SET_DOCUMENT_WRITER_GROUP';
+  assert.throws(() => evaluate(placeholder));
   const f = fixture([cell()]); f.pages.push({ ...f.pages[0], id: 'p2', split: 'train' });
   assert.throws(() => evaluate(f), /leaks/);
 });

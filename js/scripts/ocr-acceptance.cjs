@@ -8,7 +8,7 @@ function evaluate(input) {
   let total = 0, correct = 0, review = 0, wrongSuggestions = 0, suggestions = 0, alignmentErrors = 0, clear = 0, clearCorrect = 0;
   let testPages = 0; const counts = {};
   for (const page of input.pages) {
-    if (!page.id || ids.has(page.id) || !page.group || !['train', 'validation', 'test'].includes(page.split) || !['clear', 'hard'].includes(page.quality) || !Array.isArray(page.cells)) throw Error('Invalid page metadata or duplicate page');
+    if (typeof page.id !== 'string' || !page.id || ids.has(page.id) || typeof page.group !== 'string' || !page.group.trim() || page.group === 'SET_DOCUMENT_WRITER_GROUP' || !['train', 'validation', 'test'].includes(page.split) || !['clear', 'hard'].includes(page.quality) || !Array.isArray(page.cells) || !page.cells.length) throw Error('Invalid page metadata or duplicate page');
     ids.add(page.id);
     if (groups.has(page.group) && groups.get(page.group) !== page.split) throw Error('Document/writer group leaks across splits');
     groups.set(page.group, page.split);
