@@ -39,7 +39,7 @@ function createOcrService(opts) {
   const H = require("./handwritten-digits.js");
   function handwritingCandidate(reading, item) {
     const proxy = { recognize(crop) {
-      if (!handwriting) handwriting = H.create(require("../ocr/models/mnist-cnn.json"));
+      if (!handwriting) handwriting = H.create(require(unpacked(path.join(__dirname, "..", "ocr", "models", "mnist-cnn.json"))));
       return handwriting.recognize(crop);
     } };
     return H.addCandidate(reading, item, proxy);
