@@ -290,14 +290,15 @@
     else if(/danh sach nhan vien tang ca|tong gio tang ca/.test(f))kind='OVERTIME_SUMMARY';
     else if(/xac nhan tang ca|thoi gian tang ca/.test(f))kind='OVERTIME_SLIP';
     var candidates=[],seen={};
-    function add(field,value,source){var key=field+':'+value;if(!seen[key]){seen[key]=true;candidates.push({field:field,value:value,source:source,status:'PENDING_REVIEW'});}}
-    text.split(/\r?\n/).forEach(function(line){
-      var m,dates=/\b(\d{1,2})\s*[\/.-]\s*(\d{1,2})(?:\s*[\/.-]\s*(20\d{2}))?\b/g;
-      while((m=dates.exec(line))){var d=+m[1],mo=+m[2],y=m[3]?+m[3]:null;if(mo>=1&&mo<=12&&d>=1&&d<=new Date(y||2000,mo,0).getDate())add('date',m[0],line);}
-      var times=/\b(\d{1,2})\s*(?:h|giờ|gio|:)\s*(\d{2})(?:\s*phút)?/gi;
-      while((m=times.exec(line)))if(+m[1]<24&&+m[2]<60)add('time',('0'+m[1]).slice(-2)+':'+m[2],line);
+    function add(field,value,source,lineNo,extra){var key=field+':'+value+':'+lineNo;if(!seen[key]){seen[key]=true;candidates.push(Object.assign({field:field,value:value,source:source,sourceLine:lineNo,status:'PENDING_REVIEW'},extra||{}));}}
+    text.split(/\r?\n/).forEach(function(line,index){
+      var lineNo=index+1,m,dates=/\b(\d{1,2})\s*[\/.-]\s*(\d{1,2})(?:\s*[\/.-]\s*(\d{4}))?\b/g;
+      while((m=dates.exec(line))){var d=+m[1],mo=+m[2],y=m[3]?+m[3]:null;if((y===null||y>=1900&&y<=2099)&&mo>=1&&mo<=12&&d>=1&&d<=new Date(y||2000,mo,0).getDate())add('date',m[0],line,lineNo,{normalized:y?y+'-'+('0'+mo).slice(-2)+'-'+('0'+d).slice(-2):null,needsYear:y===null});}
+      // Colon requires minutes. An explicit h/giờ/gio permits bare hours, with optional minutes.
+      var times=/\b(\d{1,2})\s*(?::\s*(\d{1,2})(?!\d)|(?:h|giờ|gio)(?![A-Za-zÀ-ỹ])\s*(\d{1,2})?(?:\s*(?:phút|phut))?)(?!\d)/gi;
+      while((m=times.exec(line))){var hour=+m[1],minute=m[2]!=null?+m[2]:m[3]!=null?+m[3]:0;if(hour<24&&minute<60)add('time',('0'+hour).slice(-2)+':'+('0'+minute).slice(-2),line,lineNo,{raw:m[0],minutesExplicit:m[2]!=null||m[3]!=null});}
       var name=line.match(/(?:họ\s*(?:và\s*)?tên|tôi tên là)\s*[:：]\s*(.+)/i);
-      if(name&&/[A-Za-zÀ-ỹ]{2}/.test(name[1]))add('name',name[1].trim(),line);
+      if(name&&/[A-Za-zÀ-ỹ]{2}/.test(name[1]))add('name',name[1].trim(),line,lineNo);
     });
     return {kind:kind,rawText:text,candidates:candidates,requiresReview:true,canAutoImport:false,warnings:['Chữ OCR có thể sai. Đối chiếu ảnh gốc, nhân viên, ngày và giờ trước khi sử dụng. Không tự suy luận giờ qua đêm, tổng giờ hoặc xác nhận chữ ký.']};
   }

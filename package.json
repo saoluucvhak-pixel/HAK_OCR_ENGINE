@@ -1,0 +1,22 @@
+{
+  "name": "hak-ocr-engine",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Shared offline OCR modules and mandatory form review",
+  "main": "index.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test js/tests/unit/*.test.js",
+    "build": "node js/scripts/build-distribution.cjs"
+  },
+  "peerDependencies": {
+    "tesseract.js": "5.1.1"
+  },
+  "peerDependenciesMeta": {
+    "tesseract.js": {
+      "optional": true
+    }
+  }
+}

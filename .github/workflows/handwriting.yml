@@ -1,7 +1,7 @@
 name: Offline handwritten digit CNN
 on:
   push:
-    branches: [feature/handwritten-digits-cnn]
+    branches: [feature/handwritten-digits-cnn, feature/document-review-v2]
   pull_request:
 permissions:
   contents: read
@@ -13,4 +13,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test js/tests/unit/attendance-validation.test.js js/tests/unit/handwritten-digits.test.js js/tests/unit/ocr-acceptance.test.js js/tests/unit/attendance-layout.test.js js/tests/unit/document-review.test.js
+      - run: npm test
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: HAK-OCR-ENGINE-0.2.0-${{ github.run_number }}
+          path: dist/HAK_OCR_ENGINE/**
+          if-no-files-found: error
+          retention-days: 30
