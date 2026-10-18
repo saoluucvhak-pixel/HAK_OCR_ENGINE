@@ -82,6 +82,16 @@ function create(model) {
     return { text: candidates[0].text, score: candidates[0].score, margin: candidates[0].score - candidates[1].score, candidates: candidates.slice(0, 3), logits, model: model.id, verified: false };
   }
   function recognize(item) {
+    const sequence = segmentNumber(item);
+    if (sequence && sequence.status === 'READY') {
+      const parts = sequence.parts.map(part => part.separator ? { text: ',', score: 1, margin: 1 } : recognize(part.crop));
+      const confident = parts.every(part => part.status === 'CANDIDATE' || part.text === ',');
+      return { status: confident ? 'CANDIDATE' : 'NEEDS_REVIEW', text: parts.map(part => part.text || '?').join(''),
+        score: Math.min(...parts.map(part => part.score || 0)), margin: Math.min(...parts.map(part => part.margin || 0)),
+        model: model.id, method: 'separated-number-v1', verified: false,
+        warning: 'Gợi ý ghép chữ số tách rời và dấu thập phân; phải đối chiếu ảnh gốc, không tự ghi dữ liệu.' };
+    }
+    if (sequence && sequence.status === 'UNSUPPORTED') return { status: 'UNSUPPORTED', reason: sequence.reason, model: model.id, verified: false };
     const prepared = normalize(item);
     if (prepared.status !== 'READY') return { status: prepared.status, reason: prepared.reason, model: model.id, verified: false };
     const result = classify(prepared.tensor);
@@ -93,13 +103,50 @@ function create(model) {
   }
   return { classify, recognize, model: model.id };
 }
+// Conservative column segmentation: never invent a missing separator or split touching ink.
+function segmentNumber(item) {
+  const { w, h, data } = item || {};
+  if (!Number.isInteger(w) || !Number.isInteger(h) || w < 1 || h < 1 || w > 1024 || h > 1024 || !data || data.length !== w * h) return null;
+  const runs = []; let run;
+  for (let x = 0; x < w; x++) {
+    let top = h, bottom = -1;
+    for (let y = 0; y < h; y++) if (data[y * w + x] < 180) { top = Math.min(top, y); bottom = y; }
+    if (bottom >= 0) {
+      if (!run) { run = { x0: x, x1: x, y0: top, y1: bottom }; runs.push(run); }
+      run.x1 = x; run.y0 = Math.min(run.y0, top); run.y1 = Math.max(run.y1, bottom);
+    } else run = null;
+  }
+  if (runs.length < 2) return null;
+  const reject = reason => ({ status: 'UNSUPPORTED', reason });
+  const height = Math.max(...runs.map(r => r.y1 - r.y0 + 1));
+  if (height < 8 || runs.length > 5) return reject('ambiguous number segmentation');
+  const baseline = Math.max(...runs.filter(r => r.y1 - r.y0 + 1 >= height * 0.65).map(r => r.y1));
+  let separators = 0, digits = 0;
+  const parts = [];
+  for (let i = 0; i < runs.length; i++) {
+    const r = runs[i], rw = r.x1 - r.x0 + 1, rh = r.y1 - r.y0 + 1;
+    if (i && r.x0 - runs[i - 1].x1 > height * 0.9) return reject('glyph spacing too wide');
+    if (rh <= height * 0.35 && rw <= height * 0.3 && r.y0 >= baseline - height * 0.3) {
+      if (i === 0 || i === runs.length - 1 || ++separators > 1) return reject('ambiguous decimal separator');
+      parts.push({ separator: true }); continue;
+    }
+    if (rh < height * 0.65 || rw > height * 1.2) return reject('noise or unsupported symbol');
+    digits++;
+    const crop = { w: rw + 8, h: rh + 8, data: new Uint8Array((rw + 8) * (rh + 8)).fill(255) };
+    for (let y = 0; y < rh; y++) for (let x = 0; x < rw; x++) crop.data[(y + 4) * crop.w + x + 4] = data[(r.y0 + y) * w + r.x0 + x];
+    parts.push({ crop });
+  }
+  // Require visible punctuation for decimal proposals; integer strings are retained for manual review.
+  if (separators !== 1 || digits < 2 || digits > 4) return reject('separated decimal with visible separator required');
+  return { status: 'READY', parts };
+}
 function addCandidate(reading, item, recognizer) {
   let result;
   try { result = recognizer.recognize(item); }
   catch (error) { result = { status: 'UNAVAILABLE', verified: false, error: String(error.message || error) }; }
   const raw = String(reading.text || '').trim(), numeric = /^\d+(?:[.,]\d+)?$/.test(raw) ? Number(raw.replace(',', '.')) : NaN;
-  result.offered = result.status === 'CANDIDATE' && Number(result.text) !== numeric;
+  result.offered = result.status === 'CANDIDATE' && Number(String(result.text).replace(',', '.')) !== numeric;
   // Preserve Tesseract's original text/confidence; the consumer must request a human decision.
   return Object.assign({}, reading, { handwriting: result });
 }
-module.exports = { create, normalize, addCandidate };
+module.exports = { create, normalize, addCandidate, segmentNumber };

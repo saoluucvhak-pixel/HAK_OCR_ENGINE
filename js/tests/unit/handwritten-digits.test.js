@@ -41,3 +41,31 @@ test('handwriting CNN: malformed model weights fail closed', () => {
   const broken = JSON.parse(JSON.stringify(weights)); broken.weights.Parameter5.data = '';
   assert.throws(() => H.create(broken));
 });
+
+function decimal(left, right, comma = true) {
+  const w = 76, h = 40, data = new Uint8Array(w * h).fill(255);
+  for (const [sample, offset] of [[left, 2], [right, 44]]) {
+    const pixels = Buffer.from(sample.pixels, 'base64');
+    for (let y = 0; y < 28; y++) for (let x = 0; x < 28; x++) data[(y + 3) * w + x + offset] = 255 - pixels[y * 28 + x];
+  }
+  if (comma) for (let y = 25; y < 29; y++) for (let x = 35; x < 37; x++) data[y * w + x] = 0;
+  return { w, h, data };
+}
+test('handwriting decimals: visible punctuation yields 0,5 and 1,5 from public handwriting, never replaces OCR', () => {
+  const five = fixture.samples.find(s => s.label === 5 && model.recognize(paper(s)).status === 'CANDIDATE');
+  for (const digit of [0, 1]) {
+    const first = fixture.samples.find(s => s.label === digit && model.recognize(paper(s)).status === 'CANDIDATE');
+    const crop = decimal(first, five), r = H.addCandidate({ text: '?', conf: 10 }, crop, model);
+    assert.equal(r.text, '?'); assert.equal(r.handwriting.text, digit + ',5');
+    assert.equal(r.handwriting.status, 'CANDIDATE'); assert.equal(r.handwriting.verified, false);
+    assert.equal(r.handwriting.method, 'separated-number-v1');
+    const already = H.addCandidate({ text: digit + '.5', conf: 90 }, crop, model);
+    assert.equal(already.handwriting.offered, false);
+  }
+});
+test('handwriting decimals: missing punctuation and extra marks are withheld', () => {
+  const first = fixture.samples.find(s => s.label === 0), second = fixture.samples.find(s => s.label === 5);
+  assert.equal(model.recognize(decimal(first, second, false)).status, 'UNSUPPORTED');
+  const extra = decimal(first, second); for (let y = 2; y < 4; y++) extra.data[y * extra.w + 38] = 0;
+  assert.equal(model.recognize(extra).status, 'UNSUPPORTED');
+});

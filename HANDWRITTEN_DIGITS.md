@@ -39,3 +39,9 @@ Run `node --test js/tests/unit/handwritten-digits.test.js`.
 The 100 test fixtures are from the official MNIST test split, attributed to Yann LeCun and Corinna Cortes and distributed under CC BY-SA 3.0. See `js/tests/fixtures/handwriting/NOTICE.md`.
 
 For reproduction, download the pinned ONNX model and the official `mnist.npz` into a separate build-only directory, run `python js/scripts/export-handwriting-model.py <directory>` with NumPy/onnx/onnxruntime installed, then run `node js/scripts/benchmark-handwriting.cjs <directory>/mnist-test.bin`. Dataset and model SHA256 checks are mandatory. No company image, backup or private model is part of this repository.
+# Separated decimal proposals and acceptance tooling
+
+The current feature branch adds conservative column segmentation for decimal crops with an explicit small baseline separator and separated full-height digits. It never invents a missing separator, leaves touching/ambiguous glyphs for manual review, and preserves original OCR. This is a segmentation extension using the existing fixed MNIST weights, not a newly trained handwriting model. Synthetic composites do not demonstrate real-document decimal accuracy.
+
+`js/scripts/ocr-acceptance.cjs` evaluates private, locally labeled per-cell JSON (schema 1). It refuses incomplete labels, duplicate row/day keys and group leakage across splits, excludes training/validation pages, and reports only aggregate counts. `READY_FOR_HUMAN_SIGNOFF` requires declared real-private evidence, >=30 test pages, >=3000 cells, both clear/hard pages, zero alignment failures and >=99% clear-cell accuracy. It is not automatic acceptance: human review of workload, suggestion errors, offline Windows behavior and import/payroll regression remains required.
+
