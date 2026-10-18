@@ -168,7 +168,13 @@
           say("Đang dựng bảng…");
           var table = TP.parse(cells.map(function (c) { return c; }));
           var period = ""; title.forEach(function (t) { period = period || TP.periodFromText(t); });
-          return { rot: k, scale: s, g: r.g, clean: clean.g, w: r.w, h: r.h, cells: cells, table: table, title: title, period: period, box: found.box, cellMode: opt.cellMode || "so" };
+          var result = { rot: k, scale: s, g: r.g, clean: clean.g, w: r.w, h: r.h, cells: cells, table: table, title: title, period: period, box: found.box, cellMode: opt.cellMode || "so" };
+          if(table.layout)return result;
+          say("Đang phân loại giấy xác nhận / phiếu tăng ca…");
+          return host.ocr([{w:r.w,h:r.h,data:r.g,mode:'document'}]).then(function(out){
+            result.documentReview=TP.documentReview((out[0]&&out[0].text)||title.join('\n'));
+            return result;
+          });
           });
         });
       });

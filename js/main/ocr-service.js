@@ -68,12 +68,12 @@ function createOcrService(opts) {
     for (const it of items || []) {
       if (!it || !it.w || !it.h || !it.data) { out.push({ text: "", conf: 0 }); continue; }
       const data = it.data instanceof Uint8Array ? it.data : Uint8Array.from(it.data);
-      if (it.mode === "page") { // cả trang (đoán chiều ảnh): đếm từ đọc chắc (≥ 3 chữ cái, tin cậy ≥ 70)
+      if (it.mode === "page" || it.mode === "document") { // cả trang (đoán chiều ảnh): đếm từ đọc chắc (≥ 3 chữ cái, tin cậy ≥ 70)
         if (!ws.page) { ws.page = await T.createWorker("vie", 1, wopts()); await ws.page.setParameters({ tessedit_pageseg_mode: T.PSM.AUTO }); }
         const rp = await ws.page.recognize(encodeGrayPNG(data, it.w, it.h));
         // chỉ đếm từ NẰM NGANG: Tesseract tự đọc được cả chữ dọc nên ảnh xoay 90° cũng ra từ (khung cao hơn rộng)
         const good = (rp.data.words || []).filter((x) => x.confidence >= 70 && (String(x.text).match(/[A-Za-zÀ-ỹ]/g) || []).length >= 3 && (!x.bbox || x.bbox.x1 - x.bbox.x0 > x.bbox.y1 - x.bbox.y0)).length;
-        out.push({ text: "", conf: Math.round(rp.data.confidence || 0), good: good });
+        out.push({ text: it.mode === "document" ? String(rp.data.text || "") : "", conf: Math.round(rp.data.confidence || 0), good: good });
         continue;
       }
       if (it.mode === "ca" && !ws.ca) { ws.ca = await T.createWorker("eng", 1, wopts()); await ws.ca.setParameters({ tessedit_pageseg_mode: T.PSM.SINGLE_LINE, tessedit_char_whitelist: "0123456789+xX" }); } // lịch làm theo ca: "1+2", X
@@ -100,7 +100,7 @@ function createOcrService(opts) {
   };
 }
 
-const MODES = { digit: 1, text: 1, block: 1, page: 1, ca: 1 };
+const MODES = { digit: 1, text: 1, block: 1, page: 1, document: 1, ca: 1 };
 /** Kiểm tra lô ô từ giao diện: giữ nguyên số phần tử; ô sai (kích thước, dữ liệu) → { w: 0 } (trả kết quả rỗng) */
 function sanitizeOcrItems(items) {
   return items.map((it) => {

@@ -283,7 +283,25 @@
     var f = fold(s), m = f.match(/th\w{0,2}ng\s*(\d{1,2})\s*(?:\/|nam|-)\s*(\d{4})/) || f.match(/(?:^|\s)(\d{1,2})\s*\/\s*(20\d{2})(?!\d)/); // "THÁANG" (OCR thừa chữ) / chỉ có "09/2026"
     return m && +m[1] >= 1 && +m[1] <= 12 ? m[2] + "-" + ("0" + m[1]).slice(-2) : "";
   }
-  var api = { parse: parse, link: link, chain: chain, daySeq: daySeq, kindOf: kindOf, fieldRole: fieldRole, matchName: matchName, periodFromText: periodFromText, fold: fold, cellAtX: cellAtX, valOf: valOf };
+  /** Non-grid forms: suggestions only, never attendance rows or approved facts. */
+  function documentReview(text) {
+    text=String(text||'').slice(0,100000);var f=fold(text),kind='UNKNOWN';
+    if(/xac nhan van tay|cham cong bang dau van tay/.test(f))kind='FINGERPRINT_EXCEPTION';
+    else if(/danh sach nhan vien tang ca|tong gio tang ca/.test(f))kind='OVERTIME_SUMMARY';
+    else if(/xac nhan tang ca|thoi gian tang ca/.test(f))kind='OVERTIME_SLIP';
+    var candidates=[],seen={};
+    function add(field,value,source){var key=field+':'+value;if(!seen[key]){seen[key]=true;candidates.push({field:field,value:value,source:source,status:'PENDING_REVIEW'});}}
+    text.split(/\r?\n/).forEach(function(line){
+      var m,dates=/\b(\d{1,2})\s*[\/.-]\s*(\d{1,2})(?:\s*[\/.-]\s*(20\d{2}))?\b/g;
+      while((m=dates.exec(line))){var d=+m[1],mo=+m[2],y=m[3]?+m[3]:null;if(mo>=1&&mo<=12&&d>=1&&d<=new Date(y||2000,mo,0).getDate())add('date',m[0],line);}
+      var times=/\b(\d{1,2})\s*(?:h|giờ|gio|:)\s*(\d{2})(?:\s*phút)?/gi;
+      while((m=times.exec(line)))if(+m[1]<24&&+m[2]<60)add('time',('0'+m[1]).slice(-2)+':'+m[2],line);
+      var name=line.match(/(?:họ\s*(?:và\s*)?tên|tôi tên là)\s*[:：]\s*(.+)/i);
+      if(name&&/[A-Za-zÀ-ỹ]{2}/.test(name[1]))add('name',name[1].trim(),line);
+    });
+    return {kind:kind,rawText:text,candidates:candidates,requiresReview:true,canAutoImport:false,warnings:['Chữ OCR có thể sai. Đối chiếu ảnh gốc, nhân viên, ngày và giờ trước khi sử dụng. Không tự suy luận giờ qua đêm, tổng giờ hoặc xác nhận chữ ký.']};
+  }
+  var api = { documentReview: documentReview, parse: parse, link: link, chain: chain, daySeq: daySeq, kindOf: kindOf, fieldRole: fieldRole, matchName: matchName, periodFromText: periodFromText, fold: fold, cellAtX: cellAtX, valOf: valOf };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else { root.HAKCore = root.HAKCore || {}; root.HAKCore.tsparse = api; }
 })(typeof window !== "undefined" ? window : this);
