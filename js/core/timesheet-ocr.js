@@ -7,6 +7,7 @@
   var NODE = typeof module !== "undefined" && module.exports;
   var G = NODE ? require("./table-grid.js") : root.HAKCore.grid;
   var TP = NODE ? require("./timesheet-parse.js") : root.HAKCore.tsparse;
+  var RF = NODE ? require("./page-rectify.js") : root.HAKCore.rectify;
 
   /** Cắt vùng (x0,y0,x1,y1) của ảnh xám, phóng cao ~targetH, viền trắng pad; k = xoay 90° (đoán chiều) */
   function crop(g, w, h, r, targetH, pad, k) {
@@ -109,7 +110,8 @@
   }
   /**
    * img: { g: xám Uint8Array, w, h }; host.ocr(items) → Promise<[{ text, conf }]>; opt.rotate: 0…3 (bỏ trống = tự đoán); opt.onProgress(msg)
-   * Trả Promise<{ rot, scale, g, w, h, cells, table, title, period }>
+   * opt.rectify = false: không nắn thẳng trang (mặc định nắn khi thấy khung bảng nghiêng / phối cảnh — core/page-rectify)
+   * Trả Promise<{ rot, rectify, scale, g, w, h, cells, table, title, period }> — g / cells theo ảnh ĐÃ nắn (đối chiếu ô với chính ảnh này)
    */
   function analyze(img, host, opt) {
     opt = opt || {};
@@ -119,7 +121,13 @@
     say("Đang xác định chiều ảnh…");
     var pRot = opt.rotate != null ? Promise.resolve(opt.rotate) : guessRotation(z.g, z.w, z.h, b0, host.ocr);
     return pRot.then(function (k) {
-      var r = G.rotate90(z.g, z.w, z.h, k), b = k ? G.binarize(r.g, r.w, r.h) : b0;
+      var r = G.rotate90(z.g, z.w, z.h, k);
+      // ảnh chụp nghiêng nhỏ / phối cảnh: nắn cả trang trước khi tìm ô (ô lệch dòng / lệch cột là lỗi im lặng nguy hiểm nhất)
+      if (opt.rectify !== false) say("Đang nắn thẳng ảnh…");
+      var rf = opt.rectify === false ? { applied: false, status: "DISABLED" } : RF.rectify(r.g, r.w, r.h);
+      if (rf.applied) r = { g: rf.g, w: rf.w, h: rf.h };
+      var rect = { applied: rf.applied, status: rf.status, angle: rf.angle, perspective: rf.perspective, corners: rf.corners, matrix: rf.matrix, offset: rf.offset };
+      var b = k || rf.applied ? G.binarize(r.g, r.w, r.h) : b0;
       say("Đang tìm ô của bảng…");
       var found = G.findCells(b, r.w, r.h), clean = G.removeLines(r.g, b, r.w, r.h, found, 2);
       var ws = found.cells.map(function (c) { return c.x1 - c.x0; }).sort(function (a, x) { return a - x; }), medW = ws[Math.floor(ws.length / 2)] || 10;
@@ -167,8 +175,9 @@
           return cellMode(cells, clean, r, opt.cellMode, host).then(function () {
           say("Đang dựng bảng…");
           var table = TP.parse(cells.map(function (c) { return c; }));
+          if (rect.applied && table.warnings) table.warnings.push("Ảnh đã được nắn thẳng (" + (rect.perspective ? "phối cảnh, " : "") + "nghiêng " + String(Math.abs(rect.angle)).replace(".", ",") + "°) trước khi đọc — đối chiếu từng ô với ảnh đã nắn.");
           var period = ""; title.forEach(function (t) { period = period || TP.periodFromText(t); });
-          var result = { rot: k, scale: s, g: r.g, clean: clean.g, w: r.w, h: r.h, cells: cells, table: table, title: title, period: period, box: found.box, cellMode: opt.cellMode || "so" };
+          var result = { rot: k, rectify: rect, scale: s, g: r.g, clean: clean.g, w: r.w, h: r.h, cells: cells, table: table, title: title, period: period, box: found.box, cellMode: opt.cellMode || "so" };
           if(table.layout)return result;
           say("Đang phân loại giấy xác nhận / phiếu tăng ca…");
           return host.ocr([{w:r.w,h:r.h,data:r.g,mode:'document'}]).then(function(out){
