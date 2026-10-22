@@ -137,7 +137,7 @@
       var items = todo.map(function (c) { return Object.assign(crop(clean.g, r.w, r.h, c.bb, 40, 10, 0), { mode: c.wide ? "text" : "digit" }); })
         .concat(tl.map(function (t) { return Object.assign(crop(r.g, r.w, r.h, t, 36, 8, 0), { mode: "text" }); }));
       return host.ocr(items).then(function (out) {
-        todo.forEach(function (c, i) { c.text = out[i].text; c.conf = out[i].conf; c.handwriting = out[i].handwriting || null; c.src = c.wide ? "text" : "digit"; });
+        todo.forEach(function (c, i) { c.text = out[i].text; c.conf = out[i].conf; c.handwriting = out[i].handwriting || null; c.secondOpinion = out[i].secondOpinion || null; c.src = c.wide ? "text" : "digit"; });
         var title = tl.map(function (t, i) { return out[todo.length + i].text; }).filter(Boolean);
         // ô hẹp đọc số không chắc → đọc lại dạng chữ (tiêu đề "Tổng công", nhãn "Công / Tăng ca")
         // ô rộng đọc 1 dòng không chắc (nhãn 2 dòng "Tổng / công") → đọc lại dạng khối

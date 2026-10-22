@@ -1,7 +1,7 @@
 "use strict";
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 test('public engine entry point loads without the payroll app or Tesseract installed',()=>{
- const api=require('../../..');assert.equal(typeof api.analyze,'function');assert.equal(typeof api.grid.findCells,'function');assert.equal(typeof api.rectify,'function');assert.equal(api.documentReview('GIẤY XÁC NHẬN VÂN TAY').canAutoImport,false);
+ const api=require('../../..');assert.equal(typeof api.analyze,'function');assert.equal(typeof api.grid.findCells,'function');assert.equal(typeof api.rectify,'function');assert.equal(typeof api.createUmiClient,'function');assert.equal(api.documentReview('GIẤY XÁC NHẬN VÂN TAY').canAutoImport,false);
 });
 test('browser modules load in documented order and expose the same form review contract',()=>{
  const context={Uint8Array,Uint8ClampedArray,Uint32Array,Int32Array,Float32Array};context.window=context;vm.createContext(context);
