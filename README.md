@@ -4,6 +4,7 @@ Các mô-đun OCR dùng chung cho ứng dụng offline: xử lý lưới bảng,
 
 ## Thay đổi mới
 
+- **Nắn thẳng cả trang** (`js/core/page-rectify.js`): ảnh chụp nghiêng nhỏ (≤ 15°) hoặc chụp chéo (phối cảnh) được nắn theo 4 đường viền ngoài của bảng trước khi tìm ô; giữ tiêu đề / kỳ lương ngoài bảng. Ảnh đã thẳng giữ nguyên; thiếu đường kẻ, góc lệch quá lớn hoặc khung quá nhỏ thì không nắn và ghi lý do (`status`). `result.rectify` ghi góc, phối cảnh, 4 góc nguồn và ma trận; bảng có cảnh báo khi đã nắn. Tắt bằng `analyze(img, host, { rectify: false })`.
 - Bổ sung `table-grid.js` còn thiếu để bộ điều phối đọc bảng nạp được độc lập.
 - Biểu mẫu: phân loại giấy vân tay, phiếu tăng ca, danh sách tổng giờ; trường đọc được luôn chờ duyệt.
 - Đọc ký hiệu giờ `7h`, `7h00`, `15 giờ 5 phút`, `09:3`; chuẩn hóa thành giờ:phút và giữ chữ gốc.
@@ -23,7 +24,7 @@ const review = OCR.documentReview('GIẤY XÁC NHẬN VÂN TAY\n7h ngày 6/7');
 // requiresReview: true; canAutoImport: false
 ```
 
-`index.js` xuất `documentReview`, `parseTable`, `analyze`, `grid`, `createOcrService`, `sanitizeOcrItems` và `version`. API cũ trong `js/core/timesheet-parse.js` vẫn giữ nguyên; metadata mới chỉ bổ sung.
+`index.js` xuất `documentReview`, `parseTable`, `analyze`, `grid`, `rectify`, `createOcrService`, `sanitizeOcrItems` và `version`. API cũ trong `js/core/timesheet-parse.js` vẫn giữ nguyên; metadata mới chỉ bổ sung.
 
 ## Đọc ảnh offline
 
@@ -39,7 +40,7 @@ await service.terminate();
 
 Ảnh là mảng xám Uint8Array, không phải đường dẫn. Host tự giới hạn đầu vào, xác thực người dùng và bảo vệ dữ liệu. `result.table` là bảng xem trước; khi không dựng được bảng, `result.documentReview` chứa nhánh biểu mẫu. Luồng biểu mẫu chỉ tạo gợi ý, không tạo dòng công hay ghi dữ liệu.
 
-Với trình duyệt, nạp `js/core/table-grid.js`, `js/core/timesheet-parse.js`, `js/core/timesheet-ocr.js` theo thứ tự; API ở `HAKCore.grid`, `HAKCore.tsparse`, `HAKCore.tsocr`. Host cung cấp hàm OCR offline. Không nạp mô-đun `main` bằng thẻ script.
+Với trình duyệt, nạp `js/core/table-grid.js`, `js/core/page-rectify.js`, `js/core/timesheet-parse.js`, `js/core/timesheet-ocr.js` theo thứ tự; API ở `HAKCore.grid`, `HAKCore.rectify`, `HAKCore.tsparse`, `HAKCore.tsocr`. Host cung cấp hàm OCR offline. Không nạp mô-đun `main` bằng thẻ script.
 
 ## Kiểm tra và lấy gói
 
