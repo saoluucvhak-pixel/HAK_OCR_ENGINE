@@ -6,6 +6,7 @@
 const path = require("path");
 const zlib = require("zlib");
 const { Buffer } = require("buffer");
+const U = require("./umi-ocr.js");
 
 // ---------- PNG xám tối giản (không cần thư viện) ----------
 const CRC = (() => { const t = new Int32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c; } return t; })();
@@ -28,6 +29,7 @@ function unpacked(p) { return p.replace(/app\.asar([\\/])/, "app.asar.unpacked$1
 
 /**
  * opts.appDir: thư mục app (chứa ocr/lang); opts.tesseract: thư viện (mặc định require("tesseract.js"))
+ * opts.secondOpinion: (tuỳ chọn) client của main/umi-ocr.js — ô SỐ được đọc thêm bằng Umi-OCR, kết quả ở reading.secondOpinion (không thay chữ Tesseract)
  * Trả { batch(items) → Promise<[{ text, conf }]>, selfTest(), terminate() }
  * items: [{ w, h, data: Uint8Array xám, mode: "digit" | "text" | "block" | "page" | "ca" }]
  */
@@ -78,9 +80,12 @@ function createOcrService(opts) {
       }
       if (it.mode === "ca" && !ws.ca) { ws.ca = await T.createWorker("eng", 1, wopts()); await ws.ca.setParameters({ tessedit_pageseg_mode: T.PSM.SINGLE_LINE, tessedit_char_whitelist: "0123456789+xX" }); } // lịch làm theo ca: "1+2", X
       if (it.mode === "block" && !ws.block) { ws.block = await T.createWorker("vie", 1, wopts()); await ws.block.setParameters({ tessedit_pageseg_mode: T.PSM.SINGLE_BLOCK }); } // nhãn 2 dòng ("Tổng / công")
-      const r = await (it.mode === "digit" ? ws.digit : it.mode === "block" ? ws.block : it.mode === "ca" ? ws.ca : ws.text).recognize(encodeGrayPNG(data, it.w, it.h));
+      const png = encodeGrayPNG(data, it.w, it.h);
+      const r = await (it.mode === "digit" ? ws.digit : it.mode === "block" ? ws.block : it.mode === "ca" ? ws.ca : ws.text).recognize(png);
       const reading = { text: String(r.data.text || "").replace(/\s+$/g, "").replace(/\n+/g, " ").trim(), conf: Math.round(r.data.confidence || 0) };
-      out.push(it.mode === "digit" ? handwritingCandidate(reading, it) : reading);
+      if (it.mode !== "digit") { out.push(reading); continue; }
+      const withHand = handwritingCandidate(reading, it);
+      out.push(opts.secondOpinion ? U.compare(withHand, await opts.secondOpinion.read(png).catch(() => ({ status: "UNAVAILABLE" }))) : withHand);
     }
     return out;
   }

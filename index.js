@@ -7,5 +7,6 @@ module.exports={
  grid:require('./js/core/table-grid'),
  rectify:require('./js/core/page-rectify').rectify,
  createOcrService:require('./js/main/ocr-service').createOcrService,
+ createUmiClient:require('./js/main/umi-ocr').createUmiClient,
  sanitizeOcrItems:require('./js/main/ocr-service').sanitizeOcrItems
 };
