@@ -4,6 +4,7 @@ Các mô-đun OCR dùng chung cho ứng dụng offline: xử lý lưới bảng,
 
 ## Thay đổi mới
 
+- **Thử nghiệm PaddleOCR trong Node** (`js/main/paddle-rec.js`, xem [PADDLE_ONNX.md](PADDLE_ONNX.md)): model nhận dạng PP-OCRv5 xuất ONNX chạy bằng `onnxruntime-node` (phụ thuộc tùy chọn), không cần Python; khớp PaddleOCR Python 244/244 ô. Chưa nối vào `ocr-service`. Kèm bộ ký tự huấn luyện tiếng Việt `js/ocr/paddle/vi_latin_dict.txt` (latin + 90 chữ Việt còn thiếu).
 - Bổ sung `table-grid.js` còn thiếu để bộ điều phối đọc bảng nạp được độc lập.
 - Biểu mẫu: phân loại giấy vân tay, phiếu tăng ca, danh sách tổng giờ; trường đọc được luôn chờ duyệt.
 - Đọc ký hiệu giờ `7h`, `7h00`, `15 giờ 5 phút`, `09:3`; chuẩn hóa thành giờ:phút và giữ chữ gốc.

@@ -12,10 +12,14 @@
     "build": "node js/scripts/build-distribution.cjs"
   },
   "peerDependencies": {
-    "tesseract.js": "5.1.1"
+    "tesseract.js": "5.1.1",
+    "onnxruntime-node": "1.30.0"
   },
   "peerDependenciesMeta": {
     "tesseract.js": {
+      "optional": true
+    },
+    "onnxruntime-node": {
       "optional": true
     }
   }
