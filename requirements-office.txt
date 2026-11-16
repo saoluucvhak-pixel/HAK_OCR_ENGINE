@@ -1,0 +1,2 @@
+# Tùy chọn: đọc Word/Excel/PowerPoint/HTML/CSV ra Markdown (cli.py office)
+markitdown[docx,xlsx,xls,pptx]>=0.1,<0.2

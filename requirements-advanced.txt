@@ -1,0 +1,11 @@
+# OPTIONAL: install exclusively from pre-downloaded, compatible Windows wheels.
+# Test exact resolved versions on the target CPU/GPU. This is a compatibility
+# range, NOT a Windows-tested lock file.
+-r requirements.txt
+paddlepaddle>=3.0,<4
+paddleocr>=3.0,<4
+docling>=2.0,<4
+transformers>=4.40,<6
+torch>=2.2,<3
+# For GGUF evidence extraction, optionally prebundle a compatible wheel for
+# llama-cpp-python. It is omitted here because Windows CPU builds vary widely.
