@@ -5,7 +5,7 @@
   "description": "HAK OCR (JavaScript): đọc bảng chấm công/phiếu offline bằng Tesseract.js, học từ chỗ người dùng sửa — dùng trong app Electron/Node",
   "main": "index.js",
   "scripts": {
-    "test": "node --test \"tests/unit/*.test.js\" \"tests/integration/*.test.js\"",
+    "test": "node --test tests/unit/ocr-learning-v8.test.js tests/unit/ocr-learning.test.js tests/unit/ocr-name-memory.test.js tests/unit/timesheet-ocr.test.js tests/unit/v94-ocr-state.test.js tests/integration/ocr-fixtures.test.js",
     "check": "node --check index.js && node --check core/table-grid.js && node --check core/timesheet-parse.js && node --check core/timesheet-ocr.js && node --check main/ocr-service.js && node --check main/ocr-library.js"
   },
   "dependencies": { "tesseract.js": "5.1.1" },
