@@ -45,13 +45,33 @@ def engine_report(base: Path | None = None) -> dict:
     base = base or model_root()
     models = {k: (base / k).is_dir() and any((base / k).iterdir())
               for k in ('paddle_detection','paddle_recognition','docling','handwriting','doc_unwarp','evidence_llm','unlimited_ocr')}
+    libraries = {x: importlib.util.find_spec(x) is not None
+                 for x in ('paddle','paddleocr','docling','transformers','torch','llama_cpp')}
+    # Mỗi engine chỉ "sẵn sàng" khi đủ CẢ model cục bộ lẫn thư viện; thiếu gì thì liệt kê ra.
+    engines = {
+        'paddle': _engine_status(
+            [('paddle_detection', models['paddle_detection']), ('paddle_recognition', models['paddle_recognition'])],
+            [('paddlepaddle', libraries['paddle']), ('paddleocr', libraries['paddleocr'])]),
+        'docling': _engine_status(
+            [('docling', models['docling'])],
+            [('docling', libraries['docling'])]),
+        'evidence_llm': _engine_status(
+            [('evidence_llm', models['evidence_llm'] and bool(list((base / 'evidence_llm').glob('*.gguf'))))],
+            [('llama-cpp-python', libraries['llama_cpp'])]),
+    }
     return {
         'model_root': str(base),
         'models': models,
-        'libraries': {x: importlib.util.find_spec(x) is not None
-                      for x in ('paddleocr','docling','transformers','torch')},
+        'libraries': libraries,
+        'engines': engines,
         'network_required': False,
     }
+
+
+def _engine_status(models: list[tuple[str, bool]], libs: list[tuple[str, bool]]) -> dict:
+    missing = [f'model:{name}' for name, ok in models if not ok]
+    missing += [f'library:{name}' for name, ok in libs if not ok]
+    return {'ready': not missing, 'missing': missing}
 
 
 def _dict_result(obj: Any) -> dict:

@@ -15,6 +15,7 @@ python cli.py check                         # kiểm tra Tesseract + gói tiến
 python cli.py import-and-ocr bangcong.jpg   # OCR ảnh/PDF vào kho cục bộ
 python cli.py office bang-luong.xlsx        # Excel/Word/PowerPoint -> Markdown
 python cli.py unlimited-ocr --check         # trạng thái Unlimited-OCR (model, thư viện, GPU)
+python cli.py advanced-check                # PaddleOCR / Docling / LLM GGUF: sẵn sàng hay thiếu gì
 cd js && npm install && npm test            # bản JavaScript cho app Electron
 ```
 
@@ -117,7 +118,8 @@ Khi nhập tài liệu thật, chỉ lấy dữ liệu từ trường/ô **đã 
 
 ## 5. Hạn chế còn tồn tại (phải hoàn thiện ở các phiên bản kế tiếp)
 
-- Chưa tích hợp PaddleOCR, Docling, mô hình VLM hoặc quy trình fine-tuning thật. Engine OCR đang dùng **Tesseract CPU** + PDF native + OpenCV.
+- PaddleOCR, Docling và LLM GGUF đã có adapter và đã nối vào pipeline/GUI, nhưng **chưa có model thật trong repo** và chưa kiểm chứng chất lượng trên tài liệu HAK. Các test hiện dùng đối tượng giả. Kiểm tra trạng thái bằng `python cli.py advanced-check`. Engine OCR mặc định vẫn là **Tesseract CPU** + PDF native + OpenCV.
+- Chưa có mô hình VLM hoặc quy trình fine-tuning thật.
 - Chưa phân tích liên chứng từ (tin nhắn ↔ bảng công ↔ dữ liệu vân tay ↔ bảng lương) tự động, chưa có pipeline hiểu ngữ nghĩa LLM offline.
 - Bảng nhiều lớp tiêu đề/ô gộp, ảnh phối cảnh khó hoặc in mờ không bảo đảm tái tạo đúng; có thể xuất thiếu hàng/cột, cần người kiểm tra.
 - Giao diện chưa có kéo vùng tọa độ để tạo template, không có zoom/pan tùy biến nâng cao, chưa Undo/Redo, chưa có PDF searchable xuất lại.
@@ -159,4 +161,4 @@ Không dùng dữ liệu OCR chưa duyệt làm nguồn kế toán, chấm công
 
 Chỉ sử dụng tệp nhãn mẫu trên đúng bố cục và nội dung lịch công tương ứng. Với ảnh khác, tự tạo nhãn đối chứng và lưu riêng theo cấu trúc JSON; không áp dụng nhãn mẫu cho ảnh khác.
 
-**Giới hạn chưa thay đổi:** chưa test Windows EXE thật; chưa tích hợp PaddleOCR/Docling/LLM offline; chưa kiểm thử đạt chất lượng trên toàn bộ 10 ảnh.
+**Giới hạn chưa thay đổi:** chưa test Windows EXE thật; PaddleOCR/Docling/LLM GGUF chưa chạy với model thật (xem `vendor/models/README.md`); chưa kiểm thử đạt chất lượng trên toàn bộ 10 ảnh.
