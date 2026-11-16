@@ -82,6 +82,42 @@ def _single_stem_candidate(prepared: Image.Image) -> bool:
     return True
 
 
+def _decimal_mark_present(region: Image.Image) -> bool:
+    """True when a small separator dot sits on the baseline below the digits.
+
+    Checked on the RAW crop: the cleaning step in _prepare_digit_crop drops
+    dots of 2-3 px, so checking there would miss them.  Used to stop '1.5'
+    from being read as '15' (and '0.5' as '05').  Blurred or merged dots are
+    not detected; callers must then abstain rather than guess.
+    """
+    gray = np.array(ImageOps.grayscale(region))
+    h, w = gray.shape
+    if w >= 75:
+        side = int(w * .19)
+        gray = gray[:, side:w - side]
+    gray = cv2.GaussianBlur(gray, (3, 3), 0)
+    _, bw = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    _, _, stats, _ = cv2.connectedComponentsWithStats(bw, 8)
+    comps = [tuple(int(v) for v in s[:5]) for s in stats[1:] if int(s[4]) >= 2]
+    digits = [c for c in comps if c[4] >= 8]
+    if len(digits) < 2:
+        return False
+    tx, ty, tw, th, _ = max(digits, key=lambda c: c[3])
+    if th <= 0:
+        return False
+    baseline = ty + th
+    for x, y, cw, ch, area in comps:
+        if (x, y, cw, ch) == (tx, ty, tw, th):
+            continue
+        if area >= 8:
+            continue
+        small = ch <= 0.35 * th and cw <= 0.35 * th
+        low = (y + ch / 2) >= baseline - 0.35 * th
+        if small and low:
+            return True
+    return False
+
+
 def _tight_crop(prepared: Image.Image) -> Image.Image:
     arr=np.asarray(prepared.convert('L'))
     ys,xs=np.where(arr < 125)
@@ -98,6 +134,7 @@ def _read_number_detailed(region: Image.Image, lang: str='eng') -> dict | None:
     if _single_stem_candidate(prepared):
         return {'value':'1','method':'numeric-stem-cv','confidence':'candidate'}
     whitelist='-c tessedit_char_whitelist=0123456789.,'
+    has_mark = _decimal_mark_present(region)
     votes=[]
     for sample,psm in ((prepared,10),(prepared,7),(_tight_crop(prepared),8)):
         try:
@@ -108,6 +145,10 @@ def _read_number_detailed(region: Image.Image, lang: str='eng') -> dict | None:
         except Exception:
             continue
     if not votes:return None
+    # A visible separator dot must match a decimal reading; otherwise abstain.
+    for candidate in votes:
+        has_sep=any(c in candidate for c in '.,')
+        if has_sep!=has_mark:return None
     # Conflicting model responses are NOT silently resolved by picking first.
     if len(set(votes))>1:return None
     return {'value':votes[0], 'method':'tesseract-numeric',
