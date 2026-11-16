@@ -1,0 +1,232 @@
+name: HAK Smart OCR AI - Split Windows Setup EXE
+
+on:
+  push:
+    branches: ["feature/hak-smart-ocr-ai-windows"]
+    paths:
+      - "distribution/hak-ocr-split/**"
+      - ".github/workflows/hak-ocr-split-installer.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  split-windows-setup:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    steps:
+      - name: Checkout split and join scripts
+        uses: actions/checkout@v4
+      - name: Download already verified Windows build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: HAKSmartOCRAI-Windows-x64-1.2.0-alpha
+          run-id: 38835954804
+          github-token: ${{ github.token }}
+          path: original-release
+      - name: Split Windows installer into independently checked parts
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem 'original-release' -Recurse -File -Filter 'HAKSmartOCRAI-Setup-*.exe' | Select-Object -First 1
+          if (-not $setup) { throw 'Verified EXE installer missing from downloaded artifact.' }
+          & ./distribution/hak-ocr-split/SPLIT_SETUP.ps1 -SourceExe $setup.FullName -OutputDir 'split-output' -ChunkMiB 40
+          $manifest = Get-Content 'split-output/manifest.json' -Raw | ConvertFrom-Json
+          Write-Host "Parts count: $($manifest.partCount), checksum: $($manifest.sha256)"
+          if ($manifest.partCount -lt 2 -or $manifest.partCount -gt 16) { throw 'Unexpected part count' }
+          $checkDir = 'split-roundtrip'
+          New-Item -ItemType Directory -Path $checkDir -Force | Out-Null
+          & ./distribution/hak-ocr-split/GHEP_SETUP.ps1 -InputDirectory 'split-output/parts' -ManifestPath 'split-output/manifest.json' -OutputDirectory $checkDir
+          $joined = Join-Path $checkDir $manifest.fileName
+          if (-not (Test-Path $joined)) { throw 'Reconstructed installer not found' }
+          $sum = (Get-FileHash $joined -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($sum -ne $manifest.sha256) { throw 'Roundtrip SHA256 verification failed' }
+          Write-Host 'SPLIT_AND_JOIN_ROUNDTRIP_PASS'
+      - name: Test Windows join CMD in directory with spaces
+        shell: pwsh
+        run: |
+          $testDir = Join-Path $env:RUNNER_TEMP 'HAK OCR DOWNLOAD TEST'
+          New-Item -ItemType Directory -Path $testDir -Force | Out-Null
+          Copy-Item 'distribution/hak-ocr-split/GHEP_SETUP.ps1' $testDir
+          Copy-Item 'distribution/hak-ocr-split/GHEP_FILE_EXE.cmd' $testDir
+          Copy-Item 'split-output/manifest.json' $testDir
+          $parts = Get-ChildItem 'split-output/parts' -File | Sort-Object Name
+          $i = 0
+          foreach ($part in $parts) {
+            $i++
+            $partId = '{0:d3}' -f $i
+            $zipName = 'HAK-OCR-Setup-Part-' + $partId + '.zip'
+            Compress-Archive -LiteralPath $part.FullName -DestinationPath (Join-Path $testDir $zipName) -CompressionLevel NoCompression
+          }
+          Push-Location $testDir
+          try {
+            cmd.exe /d /c "call GHEP_FILE_EXE.cmd < NUL"
+            if ($LASTEXITCODE -ne 0) { throw 'CMD join exit status failed' }
+            $manifest = Get-Content 'manifest.json' -Raw | ConvertFrom-Json
+            $joined = Join-Path $testDir $manifest.fileName
+            if (-not (Test-Path $joined)) { throw 'Joined EXE missing' }
+            if ((Get-FileHash $joined -Algorithm SHA256).Hash.ToLowerInvariant() -ne $manifest.sha256) { throw 'Joined SHA256 mismatch' }
+            Write-Host 'END_USER_CMD_JOIN_PASS'
+          } finally { Pop-Location }
+      - name: Create join helper package
+        shell: pwsh
+        run: |
+          Copy-Item 'distribution/hak-ocr-split/GHEP_SETUP.ps1' 'split-output/GHEP_SETUP.ps1'
+          Copy-Item 'distribution/hak-ocr-split/GHEP_FILE_EXE.cmd' 'split-output/GHEP_FILE_EXE.cmd'
+          Copy-Item 'distribution/hak-ocr-split/README_GHEP_EXE.md' 'split-output/README_GHEP_EXE.md'
+      - name: Upload manifest and join helper
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAK-OCR-00-GHEP-FILE
+          retention-days: 30
+          if-no-files-found: error
+          path: |
+            split-output/manifest.json
+            split-output/GHEP_SETUP.ps1
+            split-output/GHEP_FILE_EXE.cmd
+            split-output/README_GHEP_EXE.md
+      - name: Upload setup part 001
+        if: ${{ hashFiles('split-output/parts/*.part001') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAK-OCR-Setup-Part-001
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
+          path: split-output/parts/*.part001
+      - name: Upload setup part 002
+        if: ${{ hashFiles('split-output/parts/*.part002') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAK-OCR-Setup-Part-002
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
+          path: split-output/parts/*.part002
+      - name: Upload setup part 003
+        if: ${{ hashFiles('split-output/parts/*.part003') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAK-OCR-Setup-Part-003
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
+          path: split-output/parts/*.part003
+      - name: Upload setup part 004
+        if: ${{ hashFiles('split-output/parts/*.part004') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAK-OCR-Setup-Part-004
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
+          path: split-output/parts/*.part004
+      - name: Upload setup part 005
+        if: ${{ hashFiles('split-output/parts/*.part005') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAK-OCR-Setup-Part-005
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
+          path: split-output/parts/*.part005
+      - name: Upload setup part 006
+        if: ${{ hashFiles('split-output/parts/*.part006') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAK-OCR-Setup-Part-006
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
+          path: split-output/parts/*.part006
+      - name: Upload setup part 007
+        if: ${{ hashFiles('split-output/parts/*.part007') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAK-OCR-Setup-Part-007
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
+          path: split-output/parts/*.part007
+      - name: Upload setup part 008
+        if: ${{ hashFiles('split-output/parts/*.part008') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAK-OCR-Setup-Part-008
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
+          path: split-output/parts/*.part008
+      - name: Upload setup part 009
+        if: ${{ hashFiles('split-output/parts/*.part009') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAK-OCR-Setup-Part-009
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
+          path: split-output/parts/*.part009
+      - name: Upload setup part 010
+        if: ${{ hashFiles('split-output/parts/*.part010') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAK-OCR-Setup-Part-010
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
+          path: split-output/parts/*.part010
+      - name: Upload setup part 011
+        if: ${{ hashFiles('split-output/parts/*.part011') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAK-OCR-Setup-Part-011
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
+          path: split-output/parts/*.part011
+      - name: Upload setup part 012
+        if: ${{ hashFiles('split-output/parts/*.part012') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAK-OCR-Setup-Part-012
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
+          path: split-output/parts/*.part012
+      - name: Upload setup part 013
+        if: ${{ hashFiles('split-output/parts/*.part013') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAK-OCR-Setup-Part-013
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
+          path: split-output/parts/*.part013
+      - name: Upload setup part 014
+        if: ${{ hashFiles('split-output/parts/*.part014') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAK-OCR-Setup-Part-014
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
+          path: split-output/parts/*.part014
+      - name: Upload setup part 015
+        if: ${{ hashFiles('split-output/parts/*.part015') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAK-OCR-Setup-Part-015
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
+          path: split-output/parts/*.part015
+      - name: Upload setup part 016
+        if: ${{ hashFiles('split-output/parts/*.part016') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: HAK-OCR-Setup-Part-016
+          retention-days: 30
+          compression-level: 0
+          if-no-files-found: error
+          path: split-output/parts/*.part016

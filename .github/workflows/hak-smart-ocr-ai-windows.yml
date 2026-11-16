@@ -1,0 +1,89 @@
+name: HAK Smart OCR AI - Build Windows x64
+
+on:
+  push:
+    branches: ["feature/hak-smart-ocr-ai-windows"]
+    paths:
+      - "**"
+      - ".github/workflows/hak-smart-ocr-ai-windows.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-portable-and-installer:
+    runs-on: windows-2022
+    defaults:
+      run:
+        working-directory: .
+    timeout-minutes: 120
+    steps:
+      - name: Checkout full project
+        uses: actions/checkout@v4
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          architecture: x64
+      - name: Install Windows build tools
+        shell: pwsh
+        run: |
+          choco install tesseract innosetup --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { throw 'Tesseract/Inno installation failed.' }
+      - name: Prepare Vietnamese and English OCR languages on build runner
+        shell: pwsh
+        run: |
+          $binary = Get-Command tesseract.exe -ErrorAction SilentlyContinue
+          if (-not $binary) {
+            $candidate = Join-Path $env:ProgramFiles 'Tesseract-OCR\tesseract.exe'
+            if (-not (Test-Path $candidate)) { throw 'Tesseract binary not found after install.' }
+            $tesseract = $candidate
+          } else {
+            $tesseract = $binary.Source
+          }
+          $tessdata = Join-Path (Split-Path -Parent $tesseract) 'tessdata'
+          New-Item -ItemType Directory -Force -Path $tessdata | Out-Null
+          foreach ($lang in @('eng','vie')) {
+            $dst = Join-Path $tessdata "$lang.traineddata"
+            if (-not (Test-Path $dst) -or (Get-Item $dst).Length -lt 1024) {
+              # Build-time download only. The packaged Windows app is fully offline.
+              $uri = "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/main/$lang.traineddata"
+              Invoke-WebRequest -Uri $uri -OutFile $dst -UseBasicParsing
+            }
+            if ((Get-Item $dst).Length -lt 1024) { throw "Model missing or corrupt: $dst" }
+            $hash = (Get-FileHash -Algorithm SHA256 $dst).Hash
+            Write-Host "$lang $hash"
+          }
+          & $tesseract --list-langs
+          if ($LASTEXITCODE -ne 0) { throw 'Installed Tesseract cannot run.' }
+      - name: Run tests, bundle OCR and create real EXE
+        shell: pwsh
+        run: |
+          & .\scripts\build_windows_release.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Windows build failed.' }
+      - name: Check Windows deliverables
+        shell: pwsh
+        run: |
+          $exe = 'dist\HAKSmartOCRAI\HAKSmartOCRAI.exe'
+          $setup = Get-ChildItem 'dist\HAKSmartOCRAI-Setup-*.exe' -ErrorAction SilentlyContinue | Select-Object -First 1
+          $portable = Get-ChildItem 'dist\HAKSmartOCRAI-Portable-*.zip' -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not (Test-Path $exe) -or -not $setup -or -not $portable) { throw 'EXE, installer or portable ZIP missing.' }
+          $report = Get-Content 'validation\packaged-check.json' -Raw | ConvertFrom-Json
+          if (-not $report.ok -or -not $report.frozen) { throw 'Frozen EXE self-test failed.' }
+          foreach ($file in @($exe,$setup.FullName,$portable.FullName)) {
+            $hash = (Get-FileHash -Algorithm SHA256 $file).Hash
+            Write-Host "$file SHA256=$hash"
+          }
+      - name: Upload verified Windows installer and portable ZIP
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: HAKSmartOCRAI-Windows-x64-1.2.0-alpha
+          retention-days: 30
+          if-no-files-found: error
+          path: |
+            dist/HAKSmartOCRAI-Setup-*.exe
+            dist/HAKSmartOCRAI-Portable-*.zip
+            dist/HAKSmartOCRAI/release-manifest.json
+            validation/packaged-check.json
